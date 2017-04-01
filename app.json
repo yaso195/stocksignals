@@ -1,0 +1,13 @@
+{
+  "name": "Stocksignals",
+  "description": "An App to track signal performances",
+  "keywords": [
+    "stocksignals",
+    "Stocksignal",
+    "stocksignal",
+  ],
+  "image": "heroku/go:1.6",
+  "mount_dir": "src/github.com/heroku/stocksignals",
+  "website": "http://github.com/yaso195/stocksignals",
+  "repository": "http://github.com/yaso195/stocksignals"
+}
