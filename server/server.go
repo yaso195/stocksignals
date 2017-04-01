@@ -7,14 +7,22 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/heroku/stocksignals/store"
 )
 
-// hello world, the web server
-func HelloServer(c *gin.Context) {
+// stocksignals the web server
+func WelcomeStockSignals(c *gin.Context) {
 	var buffer bytes.Buffer
-	buffer.WriteString("Hello world!\n")
+	buffer.WriteString("Welcome to the StockSignals backend!\n")
 
 	c.String(http.StatusOK, buffer.String())
+}
+
+// stocksignals the web server
+func GetSignals(c *gin.Context) {
+	if err := store.Connect(); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+	}
 }
 
 func Run() {
@@ -26,7 +34,8 @@ func Run() {
 	router := gin.New()
 	router.Use(gin.Logger())
 
-	router.GET("/", HelloServer)
+	router.GET("/", WelcomeStockSignals)
+	router.GET("/signals", GetSignals)
 
 	router.Run(":" + port)
 }
