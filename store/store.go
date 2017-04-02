@@ -6,6 +6,8 @@ import (
 
 	"github.com/heroku/stocksignals/model"
 	"github.com/jmoiron/sqlx"
+
+	_ "github.com/lib/pq"
 )
 
 var (
@@ -28,7 +30,7 @@ func GetSignals() ([]model.Signal, error) {
 	}
 
 	var results []model.Signal
-	err := db.Select(&results, "SELECT * FROM signals ORDER_BY growth DESC")
+	err := db.Select(&results, "SELECT * FROM signals ORDER BY growth DESC")
 	if err != nil {
 		return nil, fmt.Errorf("error reading signals: %q", err)
 	}
