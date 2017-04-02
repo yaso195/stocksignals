@@ -3,10 +3,32 @@
 	"ignore": "",
 	"package": [
 		{
+			"path": "appengine/cloudsql",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "0z76T5x2iveCIDSl+VYVxYmdf1Y=",
 			"path": "github.com/gin-gonic/gin",
 			"revision": "e2212d40c62a98b388a5eb48ecbdcf88534688ba",
 			"revisionTime": "2016-12-04T22:13:08Z"
+		},
+		{
+			"checksumSHA1": "rW10WiIk1TiI0tS45lA4A2t1g4k=",
+			"path": "github.com/go-sql-driver/mysql",
+			"revision": "9dee4ca50b83acdf57a35fb9e6fb4be640afa2f3",
+			"revisionTime": "2017-03-27T11:30:21Z"
+		},
+		{
+			"checksumSHA1": "ZThO1xuqXCRwkyOIeLxQYI994Bo=",
+			"path": "github.com/jmoiron/sqlx",
+			"revision": "8ed836a8adb659e8492bcaa49e0880bb84075fe2",
+			"revisionTime": "2017-03-08T17:16:22Z"
+		},
+		{
+			"checksumSHA1": "qzt9nT3655sixQvMZetz/MW9GeA=",
+			"path": "github.com/jmoiron/sqlx/reflectx",
+			"revision": "8ed836a8adb659e8492bcaa49e0880bb84075fe2",
+			"revisionTime": "2017-03-08T17:16:22Z"
 		},
 		{
 			"checksumSHA1": "9xAISNM36+NZlA3v8MkPhklkphU=",
@@ -19,6 +41,18 @@
 			"path": "github.com/lib/pq/oid",
 			"revision": "2704adc878c21e1329f46f6e56a1c387d788ff94",
 			"revisionTime": "2017-03-24T20:46:54Z"
+		},
+		{
+			"checksumSHA1": "IKasJ44QnCMN7D2sN2eXt/RpFNk=",
+			"path": "github.com/mattn/go-sqlite3",
+			"revision": "b2e464529e88db676302aa63a4ce36711633950e",
+			"revisionTime": "2017-03-24T00:12:00Z"
+		},
+		{
+			"checksumSHA1": "vxP26s3TVOyaqMIREQxsvsxeeC8=",
+			"path": "github.com/mattn/go-sqlite3/sqlite3_test",
+			"revision": "b2e464529e88db676302aa63a4ce36711633950e",
+			"revisionTime": "2017-03-24T00:12:00Z"
 		}
 	],
 	"rootPath": "github.com/heroku/stocksignals"
