@@ -15,7 +15,7 @@ func GetSignals(field string, descend bool) ([]model.Signal, error) {
 	}
 
 	if field == "" {
-		field = DEFAULT_SIGNAL_ORDER_FIELD
+		field = DEFAULT_SIGNAL_FIELD
 	}
 
 	order := "DESC"

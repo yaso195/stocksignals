@@ -10,7 +10,9 @@ import (
 )
 
 const (
-	DEFAULT_SIGNAL_ORDER_FIELD = "growth"
+	DEFAULT_SIGNAL_FIELD  = "growth"
+	DEFAULT_ORDER_FIELD   = "order_time"
+	DEFAULT_HOLDING_FIELD = "num_shares"
 )
 
 var (
