@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/heroku/stocksignals/model"
@@ -37,7 +38,12 @@ func getHolding(signalID int, code string) (model.Holding, error) {
 	}
 
 	var result model.Holding
-	err := db.Select(&result, fmt.Sprintf("SELECT * FROM orders WHERE signal_id = %d and code = %s", signalID, code))
+	query := fmt.Sprintf("SELECT * FROM holdings WHERE signal_id = %d and code = '%s'", signalID, code)
+	err := db.Get(&result, query)
+	if err == sql.ErrNoRows {
+		return model.Holding{}, nil
+	}
+
 	if err != nil {
 		return model.Holding{}, fmt.Errorf("error reading holding: %q", err)
 	}
