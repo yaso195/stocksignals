@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/heroku/stocksignals/model"
+	"github.com/heroku/stocksignals/stockapi"
 	"github.com/heroku/stocksignals/store"
 )
 
@@ -17,6 +18,7 @@ func GetOrdersBySignalID(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	field := c.DefaultQuery("field", "")
 	orderStr := c.DefaultQuery("order", "true")
@@ -44,21 +46,43 @@ func GetOrdersBySignalID(c *gin.Context) {
 
 // RegisterOrder registers the given order
 func RegisterOrder(c *gin.Context) {
-	if err := store.Connect(); err != nil {
+	var err error
+	if err = store.Connect(); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	var order model.Order
-	if err := c.BindJSON(&order); err != nil {
+	if err = c.BindJSON(&order); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	order.Price = 0.0
-	order.Profit = 0.0
-	if order.Time.IsZero() {
-		order.Time = time.Now()
+	name, err := stockapi.GetName(order.Code)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	order.Name = name
+
+	var price float64
+	switch order.Type {
+	case model.BUY:
+		price, err = stockapi.GetAskPrice(order.Code)
+	case model.SELL:
+		price, err = stockapi.GetBidPrice(order.Code)
+	}
+
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	order.Price = price
+
+	if order.Time == 0 {
+		order.Time = time.Now().Unix()
 	}
 
 	if err := store.RegisterOrder(order); err != nil {

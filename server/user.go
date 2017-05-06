@@ -15,6 +15,7 @@ func GetUsers(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	users, err := store.GetUsers()
 	if err != nil {

@@ -16,6 +16,7 @@ func GetSignals(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	field := c.DefaultQuery("field", "")
 	orderStr := c.DefaultQuery("order", "true")
@@ -40,6 +41,7 @@ func RegisterSignal(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	var signal model.Signal
 	if err := c.BindJSON(&signal); err != nil {
@@ -61,6 +63,7 @@ func GetSignalByID(c *gin.Context) {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
+	defer store.Disconnect()
 
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
