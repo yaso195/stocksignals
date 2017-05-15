@@ -59,19 +59,19 @@ func RegisterOrder(c *gin.Context) {
 		return
 	}
 
-	name, err := stockapi.GetName(order.Code)
+	names, err := stockapi.GetNames([]string{order.Code})
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
-	order.Name = name
+	order.Name = names[0]
 
-	var price float64
+	var prices []float64
 	switch order.Type {
 	case model.BUY:
-		price, err = stockapi.GetAskPrice(order.Code)
+		prices, err = stockapi.GetAskPrices([]string{order.Code})
 	case model.SELL:
-		price, err = stockapi.GetBidPrice(order.Code)
+		prices, err = stockapi.GetBidPrices([]string{order.Code})
 	}
 
 	if err != nil {
@@ -79,13 +79,15 @@ func RegisterOrder(c *gin.Context) {
 		return
 	}
 
-	order.Price = price
+	if len(prices) > 0 {
+		order.Price = prices[0]
+	}
 
 	if order.Time == 0 {
 		order.Time = time.Now().Unix()
 	}
 
-	if err := store.RegisterOrder(order); err != nil {
+	if err := store.RegisterOrder(&order); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}

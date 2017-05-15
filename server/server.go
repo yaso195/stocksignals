@@ -47,7 +47,7 @@ func Run() {
 	router.POST("/order", RegisterOrder)
 
 	router.GET("/holdings", GetHoldingsBySignalID)
-	router.GET("/stats", GetStatsBySignalID)
+	router.GET("/stats", GetLatestStatsBySignalID)
 
 	router.Run(":" + port)
 }

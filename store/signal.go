@@ -47,13 +47,25 @@ func RegisterSignal(signal model.Signal) error {
 		return fmt.Errorf("price cannot be less than or equal to 0")
 	}
 
+	tx := db.MustBegin()
+
 	var result model.Signal
-	err := db.Get(&result, fmt.Sprintf("SELECT * FROM signals WHERE lower(name)='%s'", tempName))
+	err := tx.Get(&result, fmt.Sprintf("SELECT * FROM signals WHERE lower(name)='%s'", tempName))
 	if err == sql.ErrNoRows {
-		_, errRegister := db.NamedExec("INSERT INTO signals (name, description, num_subscribers, num_trades, price, growth)"+
-			" VALUES (:name, :description, :num_subscribers, :num_trades, :price, :growth)", &signal)
+		var id int
+		errRegister := tx.QueryRow("INSERT INTO signals (name, description, num_subscribers, price, num_trades, "+
+			"first_trade_time, last_trade_time) VALUES ($1, $2, $3, $4, $5, $6, $7) returning id",
+			signal.Name, signal.Description, signal.NumSubscribers, signal.Price, signal.NumTrades, signal.FirstTradeTime, signal.LastTradeTime).Scan(&id)
 		if errRegister != nil {
 			return fmt.Errorf("error registering signal with name %s: %q", signal.Name, err)
+		}
+
+		if err = createNewStats(tx, id); err != nil {
+			return fmt.Errorf("failed to create new stats : %s", err)
+		}
+
+		if err = tx.Commit(); err != nil {
+			return fmt.Errorf("failed to complete signal registration : %s", err)
 		}
 		return nil
 	}

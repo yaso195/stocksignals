@@ -31,28 +31,62 @@ func GetOrdersBySignalID(signalID int, field string, descend bool) ([]model.Orde
 	return results, nil
 }
 
-func RegisterOrder(order model.Order) error {
-	stats, err := GetStats(order.SignalID)
+func RegisterOrder(order *model.Order) error {
+	if order == nil {
+		return fmt.Errorf("given order is nil")
+	}
+
+	signal, err := GetSignalByID(order.SignalID)
 	if err != nil {
 		return err
 	}
 
-	holding, err := getHolding(order.SignalID, order.Code)
+	stats, err := GetLatestStats(order.SignalID)
+	if err != nil {
+		return err
+	}
+
+	holdings, err := GetHoldingsBySignalID(order.SignalID, "", true)
 	if err != nil {
 		return err
 	}
 
 	tx := db.MustBegin()
 
+	var statsProfit float64
 	switch order.Type {
 	case model.DEPOSIT:
-		err = prepareDepositOrder(stats, &order, tx)
+		err = executeDepositOrder(stats, order)
 	case model.WITHDRAW:
-		err = prepareWithdrawOrder(stats, &order, tx)
+		err = executeWithdrawOrder(stats, order)
 	case model.BUY:
-		err = prepareBuyOrder(stats, &order, holding, tx)
+		loc := findHolding(order.Code, holdings)
+		var holding *model.Holding
+		if loc == -1 {
+			holding = &model.Holding{}
+		} else {
+			holding = &holdings[loc]
+		}
+
+		err = executeBuyOrder(*signal, stats, order, holding, tx)
+
+		if loc == -1 {
+			holdings = append(holdings, *holding)
+		} else {
+			holdings[loc] = *holding
+		}
 	case model.SELL:
-		err = prepareSellOrder(stats, &order, holding, tx)
+		loc := findHolding(order.Code, holdings)
+		var holding *model.Holding
+		if loc != -1 {
+			holding = &holdings[loc]
+		}
+
+		err = executeSellOrder(*signal, stats, order, holding, tx)
+
+		statsProfit = order.Profit
+	default:
+		err = fmt.Errorf("unknown order type")
 	}
 
 	if err != nil {
@@ -65,27 +99,23 @@ func RegisterOrder(order model.Order) error {
 		return fmt.Errorf("failed to insert order : %s", err)
 	}
 
+	if err = insertStats(tx, stats, statsProfit, holdings); err != nil {
+		return err
+	}
+
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("failed to complete order registration : %s", err)
 	}
 	return nil
 }
 
-func prepareDepositOrder(stats model.Stats, order *model.Order, tx *sqlx.Tx) error {
-	if tx == nil {
-		return fmt.Errorf("tx is nil")
+func executeDepositOrder(stats *model.Stats, order *model.Order) error {
+	if stats.SignalID == 0 || stats.SignalID != order.SignalID {
+		return fmt.Errorf("given stats is invalid")
 	}
 
-	if stats.ID == 0 {
-		if err := createStats(order.SignalID); err != nil {
-			return err
-		}
-	}
-
-	stats.ID = order.SignalID
-	if err := updateStatsFund(tx, order.Profit, false, stats); err != nil {
-		return err
-	}
+	stats.Funds += order.Profit
+	stats.Deposits += order.Profit
 
 	order.Code = ""
 	order.Name = ""
@@ -94,18 +124,17 @@ func prepareDepositOrder(stats model.Stats, order *model.Order, tx *sqlx.Tx) err
 	return nil
 }
 
-func prepareWithdrawOrder(stats model.Stats, order *model.Order, tx *sqlx.Tx) error {
-	if tx == nil {
-		return fmt.Errorf("tx is nil")
+func executeWithdrawOrder(stats *model.Stats, order *model.Order) error {
+	if stats.SignalID == 0 || stats.SignalID != order.SignalID {
+		return fmt.Errorf("given stats is invalid")
 	}
 
-	if stats.ID == 0 {
-		return fmt.Errorf("failed to withdraw, because signal has no funds")
+	if order.Profit > stats.Funds {
+		return fmt.Errorf("available funds are less than withdraw amount")
 	}
 
-	if err := updateStatsFund(tx, order.Profit*(-1), false, stats); err != nil {
-		return err
-	}
+	stats.Funds -= order.Profit
+	stats.Withdrawals += order.Profit
 
 	order.Code = ""
 	order.Name = ""
@@ -115,7 +144,7 @@ func prepareWithdrawOrder(stats model.Stats, order *model.Order, tx *sqlx.Tx) er
 	return nil
 }
 
-func prepareBuyOrder(stats model.Stats, order *model.Order, holding model.Holding, tx *sqlx.Tx) error {
+func executeBuyOrder(signal model.Signal, stats *model.Stats, order *model.Order, holding *model.Holding, tx *sqlx.Tx) error {
 	if tx == nil {
 		return fmt.Errorf("tx is nil")
 	}
@@ -131,6 +160,7 @@ func prepareBuyOrder(stats model.Stats, order *model.Order, holding model.Holdin
 		holding.Name = order.Name
 		holding.NumShares = order.NumShares
 		holding.Price = order.Price
+		stats.Time = order.Time
 
 		// Insert the holding
 		_, err := tx.NamedExec("INSERT INTO holdings (signal_id, code, name, num_shares, price)"+
@@ -151,18 +181,31 @@ func prepareBuyOrder(stats model.Stats, order *model.Order, holding model.Holdin
 	}
 
 	stats.Funds -= float64(order.NumShares) * order.Price
-	stats.NumTrades++
-	_, err := tx.NamedExec("UPDATE stats SET"+
-		" funds = :funds, num_trades = :num_trades WHERE id = :id", &stats)
-	if err != nil {
-		return fmt.Errorf("failed to update stats : %s", err)
+
+	signal.NumTrades++
+	if signal.FirstTradeTime == 0 {
+		signal.FirstTradeTime = order.Time
 	}
+
+	signal.LastTradeTime = order.Time
+	_, err := tx.NamedExec("UPDATE signals SET "+
+		"num_trades = :num_trades, first_trade_time = :first_trade_time, "+
+		"last_trade_time = :last_trade_time WHERE id = :id",
+		&signal)
+	if err != nil {
+		return fmt.Errorf("failed to update signal : %s", err)
+	}
+
 	return nil
 }
 
-func prepareSellOrder(stats model.Stats, order *model.Order, holding model.Holding, tx *sqlx.Tx) error {
+func executeSellOrder(signal model.Signal, stats *model.Stats, order *model.Order, holding *model.Holding, tx *sqlx.Tx) error {
 	if tx == nil {
 		return fmt.Errorf("tx is nil")
+	}
+
+	if holding == nil {
+		return fmt.Errorf("%s stock does not exist in the holdings", order.Code)
 	}
 
 	if order.NumShares > holding.NumShares {
@@ -186,16 +229,26 @@ func prepareSellOrder(stats model.Stats, order *model.Order, holding model.Holdi
 			return fmt.Errorf("failed to update holding : %s", err)
 		}
 	}
-
-	stats.Profit += profit
-	stats.NumTrades++
 	stats.Funds += float64(order.NumShares) * order.Price
-	_, err := tx.NamedExec("UPDATE stats SET"+
-		" profit = :profit, funds = :funds, num_trades = :num_trades WHERE id = :id", &stats)
+
+	signal.NumTrades++
+	signal.LastTradeTime = order.Time
+	_, err := tx.NamedExec("UPDATE signals SET"+
+		" num_trades = :num_trades, last_trade_time = :last_trade_time WHERE id = :id",
+		&signal)
 	if err != nil {
-		return fmt.Errorf("failed to update stats : %s", err)
+		return fmt.Errorf("failed to update signal : %s", err)
 	}
 
 	order.Profit = profit
 	return nil
+}
+
+func findHolding(code string, holdings []model.Holding) int {
+	for i, h := range holdings {
+		if h.Code == code {
+			return i
+		}
+	}
+	return -1
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/heroku/stocksignals/store"
 )
 
-// GetStatsBySignalID retrieves the holdings by signal ID parameter
-func GetStatsBySignalID(c *gin.Context) {
+// GetLatestStatsBySignalID retrieves the latest stats by signal ID parameter
+func GetLatestStatsBySignalID(c *gin.Context) {
 	if err := store.Connect(); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -24,7 +24,7 @@ func GetStatsBySignalID(c *gin.Context) {
 		return
 	}
 
-	stats, err := store.GetStats(id)
+	stats, err := store.GetLatestStats(id)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return

@@ -21,16 +21,18 @@ type Signal struct {
 	NumSubscribers int     `json:"num_subscribers" db:"num_subscribers"`
 	NumTrades      int     `json:"num_trades" db:"num_trades"`
 	Price          float64 `json:"price" binding:"required" db:"price"`
-	Growth         float64 `json:"growth" db:"growth"`
+	FirstTradeTime int64   `json:"first_trade_time" db:"first_trade_time"`
+	LastTradeTime  int64   `json:"last_trade_time" db:"last_trade_time"`
 }
 
 type Holding struct {
-	ID        int     `json:"id" db:"id"`
-	SignalID  int     `json:"signal_id" db:"signal_id"`
-	Code      string  `json:"code" binding:"required" db:"code"`
-	Name      string  `json:"name,omitempty" db:"name"`
-	NumShares int     `json:"num_shares" db:"num_shares"`
-	Price     float64 `json:"price" binding:"required" db:"price"`
+	ID         int     `json:"id" db:"id"`
+	SignalID   int     `json:"signal_id" db:"signal_id"`
+	Code       string  `json:"code" binding:"required" db:"code"`
+	Name       string  `json:"name,omitempty" db:"name"`
+	NumShares  int     `json:"num_shares" db:"num_shares"`
+	Price      float64 `json:"price" binding:"required" db:"price"`
+	Percentage float64
 }
 
 type Order struct {
@@ -47,9 +49,19 @@ type Order struct {
 
 type Stats struct {
 	ID          int     `json:"id" db:"id"`
+	SignalID    int     `json:"signal_id" db:"signal_id"`
 	Deposits    float64 `json:"deposits" db:"deposits"`
 	Withdrawals float64 `json:"withdrawals" db:"withdrawals"`
 	Funds       float64 `json:"funds" db:"funds"`
+	Balance     float64 `json:"balance" db:"balance"`
+	Equity      float64 `json:"equity" db:"equity"`
 	Profit      float64 `json:"profit" db:"profit"`
-	NumTrades   int     `json:"num_trades" db:"num_trades"`
+	Gain        float64 `json:"gain" db:"gain"`
+	Drawdown    float64 `json:"drawdown" db:"drawdown"`
+	Time        int64   `json:"time" db:"stats_time"`
+}
+
+type Portfolio struct {
+	Stats
+	Holdings []Holding `json:"holdings"`
 }
