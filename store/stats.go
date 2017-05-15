@@ -61,7 +61,7 @@ func GetLatestStats(signalID int) (*model.Stats, error) {
 	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY stats_time DESC LIMIT 1", signalID)
 	err := db.Get(&result, query)
 	if err == sql.ErrNoRows {
-		return &model.Stats{}, nil
+		return nil, nil
 	}
 
 	if err != nil {
@@ -69,6 +69,22 @@ func GetLatestStats(signalID int) (*model.Stats, error) {
 	}
 
 	return &result, nil
+}
+
+// GetAllStats reads the stats from the database based on the given signal id
+func GetAllStats(signalID int) ([]model.Stats, error) {
+	if db == nil {
+		return nil, fmt.Errorf("no connection is created to the database")
+	}
+
+	var results []model.Stats
+	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY stats_time DESC", signalID)
+
+	if err := db.Select(&results, query); err != nil {
+		return nil, fmt.Errorf("error reading stats: %q", err)
+	}
+
+	return results, nil
 }
 
 func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) error {
