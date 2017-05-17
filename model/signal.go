@@ -26,13 +26,14 @@ type Signal struct {
 }
 
 type Holding struct {
-	ID         int     `json:"id" db:"id"`
-	SignalID   int     `json:"signal_id" db:"signal_id"`
-	Code       string  `json:"code" binding:"required" db:"code"`
-	Name       string  `json:"name,omitempty" db:"name"`
-	NumShares  int     `json:"num_shares" db:"num_shares"`
-	Price      float64 `json:"price" binding:"required" db:"price"`
-	Percentage float64
+	ID        int     `json:"id" db:"id"`
+	SignalID  int     `json:"signal_id" db:"signal_id"`
+	Code      string  `json:"code" binding:"required" db:"code"`
+	Name      string  `json:"name,omitempty" db:"name"`
+	NumShares int     `json:"num_shares" db:"num_shares"`
+	Price     float64 `json:"price" binding:"required" db:"price"`
+	Ratio     float64 `json:"ratio,omitempty"`
+	Gain      float64 `json:"gain,omitempty"`
 }
 
 type Order struct {

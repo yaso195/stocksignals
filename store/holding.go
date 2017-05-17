@@ -22,13 +22,13 @@ func GetHoldingsBySignalID(signalID int, field string, descend bool) ([]model.Ho
 		order = "ASC"
 	}
 
-	var results []model.Holding
-	err := db.Select(&results, fmt.Sprintf("SELECT * FROM holdings WHERE signal_id = %d ORDER BY %s %s", signalID, field, order))
+	var holdings []model.Holding
+	err := db.Select(&holdings, fmt.Sprintf("SELECT * FROM holdings WHERE signal_id = %d ORDER BY %s %s", signalID, field, order))
 	if err != nil {
 		return nil, fmt.Errorf("error reading holdings: %q", err)
 	}
 
-	return results, nil
+	return holdings, nil
 }
 
 // getHolding reads the holding from the database based on the given signal id and stock code

@@ -50,5 +50,7 @@ func Run() {
 	router.GET("/stats", GetLatestStatsBySignalID)
 	router.GET("/stats_all", GetAllStatsBySignalID)
 
+	router.GET("/portfolio", GetPortfolioBySignalID)
+
 	router.Run(":" + port)
 }

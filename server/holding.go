@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	//"github.com/heroku/stocksignals/model"
-	//"github.com/heroku/stocksignals/stockapi"
+	"github.com/heroku/stocksignals/model"
+	"github.com/heroku/stocksignals/stockapi"
 	"github.com/heroku/stocksignals/store"
 )
 
@@ -43,7 +43,7 @@ func GetHoldingsBySignalID(c *gin.Context) {
 	c.JSON(http.StatusOK, holding)
 }
 
-/*func GetPortfolioBySignalID(c *gin.Context) {
+func GetPortfolioBySignalID(c *gin.Context) {
 	if err := store.Connect(); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
@@ -69,37 +69,37 @@ func GetHoldingsBySignalID(c *gin.Context) {
 		return
 	}
 
-	portfolio, err := computePortfolio(stats, holdings)
-	if err != nil {
+	if err = computePortfolio(holdings); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	portfolio := model.Portfolio{Stats: *stats, Holdings: holdings}
 	c.JSON(http.StatusOK, portfolio)
-} */
+}
 
-/*func computePortfolio(stats model.Stats, holdings []model.Holding) (*model.Portfolio, error) {
-	var portfolio model.Portfolio
-
+func computePortfolio(holdings []model.Holding) error {
 	var stocks []string
-	for _, holding := range holdings {
-		stocks = append(stocks, holding.Code)
+	var totalStockEquity float64
+	if len(holdings) > 0 {
+		for _, holding := range holdings {
+			stocks = append(stocks, holding.Code)
+		}
+
+		prices, err := stockapi.GetBidPrices(stocks)
+		if err != nil {
+			return err
+		}
+
+		for i, holding := range holdings {
+			holdings[i].Gain = (prices[i] - holding.Price) * 100.0 / holding.Price
+			totalStockEquity += prices[i] * float64(holding.NumShares)
+		}
+
+		for i, holding := range holdings {
+			holdings[i].Ratio = prices[i] * float64(holding.NumShares) * 100.0 / totalStockEquity
+		}
 	}
 
-	prices, err := stockapi.GetBidPrices(stocks)
-	if err != nil {
-		return nil, err
-	}
-
-	var totalStockBalance, totalStockEquity float64
-	for i, holding := range holdings {
-		totalStockBalance += holding.Price * float64(holding.NumShares)
-		totalStockEquity += prices[i] * float64(holding.NumShares)
-	}
-
-	portfolio.Balance = totalStockBalance + stats.Funds
-	portfolio.Equity = totalStockEquity + stats.Funds
-
-	return &portfolio, nil
-
-}*/
+	return nil
+}
