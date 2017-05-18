@@ -68,9 +68,9 @@ func RegisterOrder(c *gin.Context) {
 
 	var prices []float64
 	switch order.Type {
-	case model.BUY:
+	case model.BUY, model.ADD:
 		prices, err = stockapi.GetAskPrices([]string{order.Code})
-	case model.SELL:
+	case model.SELL, model.REDUCE:
 		prices, err = stockapi.GetBidPrices([]string{order.Code})
 	}
 

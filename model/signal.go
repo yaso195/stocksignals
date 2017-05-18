@@ -1,8 +1,14 @@
 package model
 
 const (
+	// ADD represents stock add order (deposit+buy).
+	ADD = "add"
+
 	// BUY represents stock buy order.
 	BUY = "buy"
+
+	// REDUCE represents stock reduce order (sell+withdraw).
+	REDUCE = "reduce"
 
 	// SELL represents stock sell order.
 	SELL = "sell"

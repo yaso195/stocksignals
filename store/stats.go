@@ -45,7 +45,7 @@ func insertStats(tx *sqlx.Tx, stats *model.Stats, profit float64, holdings []mod
 		"VALUES (:signal_id, :deposits, :withdrawals, :funds, :balance, :equity, :profit, :gain, :drawdown, :stats_time)",
 		&stats)
 	if err != nil {
-		return fmt.Errorf("failed to insert stats fund : %s", err)
+		return fmt.Errorf("failed to insert stats : %s", err)
 	}
 
 	return nil
@@ -124,5 +124,4 @@ func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) e
 	}
 
 	return nil
-
 }

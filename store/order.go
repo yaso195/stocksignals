@@ -59,7 +59,7 @@ func RegisterOrder(order *model.Order) error {
 		err = executeDepositOrder(stats, order)
 	case model.WITHDRAW:
 		err = executeWithdrawOrder(stats, order)
-	case model.BUY:
+	case model.BUY, model.ADD:
 		loc := findHolding(order.Code, holdings)
 		var holding *model.Holding
 		if loc == -1 {
@@ -75,7 +75,7 @@ func RegisterOrder(order *model.Order) error {
 		} else {
 			holdings[loc] = *holding
 		}
-	case model.SELL:
+	case model.SELL, model.REDUCE:
 		loc := findHolding(order.Code, holdings)
 		var holding *model.Holding
 		if loc != -1 {
@@ -149,7 +149,7 @@ func executeBuyOrder(signal model.Signal, stats *model.Stats, order *model.Order
 		return fmt.Errorf("tx is nil")
 	}
 
-	if (float64(order.NumShares) * order.Price) > stats.Funds {
+	if order.Type == model.BUY && ((float64(order.NumShares) * order.Price) > stats.Funds) {
 		return fmt.Errorf("not available funds to buy the order")
 	}
 
@@ -180,7 +180,12 @@ func executeBuyOrder(signal model.Signal, stats *model.Stats, order *model.Order
 		}
 	}
 
-	stats.Funds -= float64(order.NumShares) * order.Price
+	switch order.Type {
+	case model.BUY:
+		stats.Funds -= float64(order.NumShares) * order.Price
+	case model.ADD:
+		stats.Deposits += float64(order.NumShares) * order.Price
+	}
 
 	signal.NumTrades++
 	if signal.FirstTradeTime == 0 {
@@ -229,7 +234,13 @@ func executeSellOrder(signal model.Signal, stats *model.Stats, order *model.Orde
 			return fmt.Errorf("failed to update holding : %s", err)
 		}
 	}
-	stats.Funds += float64(order.NumShares) * order.Price
+
+	switch order.Type {
+	case model.SELL:
+		stats.Funds += float64(order.NumShares) * order.Price
+	case model.REDUCE:
+		stats.Withdrawals += float64(order.NumShares) * order.Price
+	}
 
 	signal.NumTrades++
 	signal.LastTradeTime = order.Time
