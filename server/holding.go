@@ -1,7 +1,7 @@
 package server
 
 import (
-	//"fmt"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -69,7 +69,7 @@ func GetPortfolioBySignalID(c *gin.Context) {
 		return
 	}
 
-	if err = computePortfolio(holdings); err != nil {
+	if err = computePortfolio(stats, holdings); err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -78,7 +78,11 @@ func GetPortfolioBySignalID(c *gin.Context) {
 	c.JSON(http.StatusOK, portfolio)
 }
 
-func computePortfolio(holdings []model.Holding) error {
+func computePortfolio(stats *model.Stats, holdings []model.Holding) error {
+	if stats == nil {
+		return fmt.Errorf("failed to compute portfolio : given stats is nil")
+	}
+
 	var stocks []string
 	var totalStockEquity float64
 	if len(holdings) > 0 {
@@ -96,9 +100,14 @@ func computePortfolio(holdings []model.Holding) error {
 			totalStockEquity += prices[i] * float64(holding.NumShares)
 		}
 
+		stats.Equity = totalStockEquity + stats.Funds
 		for i, holding := range holdings {
 			holdings[i].Ratio = prices[i] * float64(holding.NumShares) * 100.0 / totalStockEquity
 		}
+
+		gain := (stats.Equity - stats.Balance) * 100.0 / stats.Balance
+		stats.Gain += gain
+		stats.Drawdown = gain * -1
 	}
 
 	return nil

@@ -108,14 +108,7 @@ func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) e
 
 	stats.Balance = totalStockBalance + stats.Funds
 	stats.Equity = totalStockEquity + stats.Funds
-
-	if stats.Equity < stats.Balance {
-		drawdown := (stats.Balance - stats.Equity) * 100.0 / stats.Balance
-
-		if drawdown > stats.Drawdown {
-			stats.Drawdown = drawdown
-		}
-	}
+	stats.Drawdown = (stats.Balance - stats.Equity) * 100.0 / stats.Balance
 
 	if profit != 0 {
 		gain := (profit * 100.0 / stats.Balance)
