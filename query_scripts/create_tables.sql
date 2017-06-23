@@ -6,4 +6,4 @@ CREATE TABLE IF NOT EXISTS holdings (id SERIAL UNIQUE, signal_id INT REFERENCES 
 
 CREATE TABLE IF NOT EXISTS orders (id SERIAL UNIQUE, signal_id INT REFERENCES signals(id),  order_time bigint, type TEXT NOT NULL CHECK (type <> ''), code TEXT, name TEXT, num_shares INT CONSTRAINT non_negative_num_shares CHECK (num_shares >= 0), price DECIMAL(10,2) CONSTRAINT non_negative_price CHECK (price >= 0), profit DECIMAL(10,2));
 
-CREATE TABLE IF NOT EXISTS stats (id SERIAL UNIQUE, signal_id INT REFERENCES signals(id), deposits DECIMAL(10,2), withdrawals DECIMAL(10,2), funds DECIMAL(10,2), balance DECIMAL(10,2), equity DECIMAL(10,2), profit DECIMAL(7,2), gain DECIMAL(10,2), drawdown DECIMAL(10,2), stats_time bigint);
+CREATE TABLE IF NOT EXISTS stats (id SERIAL UNIQUE, signal_id INT REFERENCES signals(id), deposits DECIMAL(10,2), withdrawals DECIMAL(10,2), funds DECIMAL(10,2), balance DECIMAL(10,2), equity DECIMAL(10,2), profit DECIMAL(10,2), gain DECIMAL(10,2), drawdown DECIMAL(10,2), stats_time bigint);

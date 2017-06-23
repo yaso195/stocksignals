@@ -36,17 +36,20 @@ func Run() {
 	router.GET("/", WelcomeStockSignals)
 
 	router.GET("/signals", GetSignals)
-	router.POST("/signal", RegisterSignal)
-	router.GET("/signal/:id", GetSignalByID)
+	router.POST("/signals", RegisterSignals)
+	router.GET("/signal", GetSignalByID)
+	router.DELETE("/signals", DeleteSignalsByID)
 
 	router.GET("/users", GetUsers)
 	router.POST("/user", RegisterUser)
 	router.GET("/user/:email", GetUserByEmail)
 
 	router.GET("/orders", GetOrdersBySignalID)
-	router.POST("/order", RegisterOrder)
+	router.POST("/orders", RegisterOrders)
+	router.DELETE("/orders", DeleteOrdersByID)
 
 	router.GET("/holdings", GetHoldingsBySignalID)
+
 	router.GET("/stats", GetLatestStatsBySignalID)
 	router.GET("/stats_all", GetAllStatsBySignalID)
 

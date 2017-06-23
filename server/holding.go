@@ -57,6 +57,17 @@ func GetPortfolioBySignalID(c *gin.Context) {
 		return
 	}
 
+	signal, err := store.GetSignalByID(id)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if signal == nil {
+		c.String(http.StatusInternalServerError, fmt.Sprintf("signal with id %s does not exist", id))
+		return
+	}
+
 	holdings, err := store.GetHoldingsBySignalID(id, "", true)
 	if err != nil {
 		c.String(http.StatusInternalServerError, err.Error())
@@ -106,7 +117,7 @@ func computePortfolio(stats *model.Stats, holdings []model.Holding) error {
 		}
 
 		gain := (stats.Equity - stats.Balance) * 100.0 / stats.Balance
-		stats.Gain += gain
+		stats.Growth += gain
 		stats.Drawdown = gain * -1
 	}
 

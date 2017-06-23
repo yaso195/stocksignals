@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"fmt"
 
 	"github.com/heroku/stocksignals/model"
@@ -31,7 +32,23 @@ func GetOrdersBySignalID(signalID int, field string, descend bool) ([]model.Orde
 	return results, nil
 }
 
-func RegisterOrder(order *model.Order) error {
+func RegisterOrders(orders []model.Order) error {
+	tx := db.MustBegin()
+
+	var err error
+	for _, order := range orders {
+		if err = registerOrder(&order, tx); err != nil {
+			return err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to complete order registration : %s", err)
+	}
+	return nil
+}
+
+func registerOrder(order *model.Order, tx *sqlx.Tx) error {
 	if order == nil {
 		return fmt.Errorf("given order is nil")
 	}
@@ -50,8 +67,6 @@ func RegisterOrder(order *model.Order) error {
 	if err != nil {
 		return err
 	}
-
-	tx := db.MustBegin()
 
 	var statsProfit float64
 	switch order.Type {
@@ -99,13 +114,11 @@ func RegisterOrder(order *model.Order) error {
 		return fmt.Errorf("failed to insert order : %s", err)
 	}
 
-	if err = insertStats(tx, stats, statsProfit, holdings); err != nil {
+	stats.Time = order.Time
+	if err = insertStats(tx, stats, statsProfit, holdings, order.PastOrder); err != nil {
 		return err
 	}
 
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to complete order registration : %s", err)
-	}
 	return nil
 }
 
@@ -192,7 +205,12 @@ func executeBuyOrder(signal model.Signal, stats *model.Stats, order *model.Order
 		signal.FirstTradeTime = order.Time
 	}
 
-	signal.LastTradeTime = order.Time
+	if order.Time > signal.LastTradeTime {
+		signal.LastTradeTime = order.Time
+	}
+	if order.Time < signal.FirstTradeTime {
+		signal.FirstTradeTime = order.Time
+	}
 	_, err := tx.NamedExec("UPDATE signals SET "+
 		"num_trades = :num_trades, first_trade_time = :first_trade_time, "+
 		"last_trade_time = :last_trade_time WHERE id = :id",
@@ -243,9 +261,14 @@ func executeSellOrder(signal model.Signal, stats *model.Stats, order *model.Orde
 	}
 
 	signal.NumTrades++
-	signal.LastTradeTime = order.Time
+	if order.Time > signal.LastTradeTime {
+		signal.LastTradeTime = order.Time
+	}
+	if order.Time < signal.FirstTradeTime {
+		signal.FirstTradeTime = order.Time
+	}
 	_, err := tx.NamedExec("UPDATE signals SET"+
-		" num_trades = :num_trades, last_trade_time = :last_trade_time WHERE id = :id",
+		" num_trades = :num_trades, first_trade_time = :first_trade_time, last_trade_time = :last_trade_time WHERE id = :id",
 		&signal)
 	if err != nil {
 		return fmt.Errorf("failed to update signal : %s", err)
@@ -262,4 +285,79 @@ func findHolding(code string, holdings []model.Holding) int {
 		}
 	}
 	return -1
+}
+
+func delete(stats *model.Stats, order *model.Order) error {
+	if stats.SignalID == 0 || stats.SignalID != order.SignalID {
+		return fmt.Errorf("given stats is invalid")
+	}
+
+	stats.Funds += order.Profit
+	stats.Deposits += order.Profit
+
+	order.Code = ""
+	order.Name = ""
+	order.NumShares = 0
+	order.Price = 0
+	return nil
+}
+
+func deleteOrdersBySignalID(signal_id int, tx *sqlx.Tx) error {
+	if tx == nil {
+		return fmt.Errorf("given transaction is nil")
+	}
+
+	_, err := tx.Exec(fmt.Sprintf("DELETE FROM orders WHERE signal_id = %d", signal_id))
+	if err != nil {
+		return fmt.Errorf("failed to delete orders from store : %s", err)
+	}
+
+	return nil
+}
+
+// DeleteOrdersByID deletes the given orders from the database
+// It cleans up only the orders, so be careful when you are using it
+func DeleteOrdersByID(ids []int) error {
+	tx := db.MustBegin()
+
+	var err error
+	for _, id := range ids {
+		_, err = getOrderByID(id)
+		if err != nil {
+			return err
+		}
+
+		_, err = tx.Exec(fmt.Sprintf("DELETE FROM orders WHERE id = %d", id))
+		if err != nil {
+			return fmt.Errorf("failed to delete order from store : %s", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to complete order deletion : %s", err)
+	}
+
+	return nil
+}
+
+// Reads the order from the database by ID, returns empty ID if it cannot find it
+func getOrderByID(id int) (*model.Order, error) {
+	if db == nil {
+		return nil, fmt.Errorf("no connection is created to the database")
+	}
+
+	if id < 0 {
+		return nil, fmt.Errorf("invalid order id")
+	}
+	var result model.Order
+	err := db.Get(&result, fmt.Sprintf("SELECT * FROM order WHERE id=%d", id))
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("order with id %d does not exist.", id)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("error reading order with id %d: %q", id, err)
+	}
+
+	return &result, nil
 }

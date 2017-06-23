@@ -15,8 +15,8 @@ func createNewStats(tx *sqlx.Tx, signalID int) error {
 	stats := model.Stats{SignalID: signalID, Time: time.Now().Unix()}
 
 	_, err := tx.NamedExec("INSERT INTO stats "+
-		"(signal_id, deposits, withdrawals, funds, balance, equity, profit, gain, drawdown, stats_time) "+
-		"VALUES (:signal_id, :deposits, :withdrawals, :funds, :balance, :equity, :profit, :gain, :drawdown, :stats_time)",
+		"(signal_id, deposits, withdrawals, funds, balance, equity, profit, growth, drawdown, stats_time) "+
+		"VALUES (:signal_id, :deposits, :withdrawals, :funds, :balance, :equity, :profit, :growth, :drawdown, :stats_time)",
 		&stats)
 	if err != nil {
 		return fmt.Errorf("failed to insert stats : %s", err)
@@ -25,7 +25,7 @@ func createNewStats(tx *sqlx.Tx, signalID int) error {
 	return nil
 }
 
-func insertStats(tx *sqlx.Tx, stats *model.Stats, profit float64, holdings []model.Holding) error {
+func insertStats(tx *sqlx.Tx, stats *model.Stats, profit float64, holdings []model.Holding, pastStats bool) error {
 	if tx == nil {
 		return fmt.Errorf("given transaction is nil")
 	}
@@ -34,15 +34,17 @@ func insertStats(tx *sqlx.Tx, stats *model.Stats, profit float64, holdings []mod
 		return fmt.Errorf("stats cannot have signal ID 0")
 	}
 
-	if err := updateStats(stats, profit, holdings); err != nil {
+	if err := updateStats(stats, profit, holdings, pastStats); err != nil {
 		return fmt.Errorf("failed to update stats : %s", err)
 	}
 
-	stats.Time = time.Now().Unix()
+	if stats.Time == 0 {
+		stats.Time = time.Now().Unix()
+	}
 
 	_, err := tx.NamedExec("INSERT INTO stats "+
-		"(signal_id, deposits, withdrawals, funds, balance, equity, profit, gain, drawdown, stats_time) "+
-		"VALUES (:signal_id, :deposits, :withdrawals, :funds, :balance, :equity, :profit, :gain, :drawdown, :stats_time)",
+		"(signal_id, deposits, withdrawals, funds, balance, equity, profit, growth, drawdown, stats_time) "+
+		"VALUES (:signal_id, :deposits, :withdrawals, :funds, :balance, :equity, :profit, :growth, :drawdown, :stats_time)",
 		&stats)
 	if err != nil {
 		return fmt.Errorf("failed to insert stats : %s", err)
@@ -87,7 +89,7 @@ func GetAllStats(signalID int) ([]model.Stats, error) {
 	return results, nil
 }
 
-func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) error {
+func updateStats(stats *model.Stats, profit float64, holdings []model.Holding, pastStats bool) error {
 	var stocks []string
 	var totalStockBalance, totalStockEquity float64
 	if len(holdings) > 0 {
@@ -95,14 +97,25 @@ func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) e
 			stocks = append(stocks, holding.Code)
 		}
 
-		prices, err := stockapi.GetBidPrices(stocks)
-		if err != nil {
-			return err
+		var prices []float64
+		var err error
+
+		if !pastStats {
+			prices, err = stockapi.GetBidPrices(stocks)
+			if err != nil {
+				return err
+			}
 		}
 
 		for i, holding := range holdings {
 			totalStockBalance += holding.Price * float64(holding.NumShares)
-			totalStockEquity += prices[i] * float64(holding.NumShares)
+			if !pastStats {
+				totalStockEquity += prices[i] * float64(holding.NumShares)
+			}
+		}
+
+		if pastStats {
+			totalStockEquity = totalStockBalance
 		}
 	}
 
@@ -112,8 +125,21 @@ func updateStats(stats *model.Stats, profit float64, holdings []model.Holding) e
 
 	if profit != 0 {
 		gain := (profit * 100.0 / stats.Balance)
-		stats.Gain += gain
+		stats.Growth += gain
 		stats.Profit += profit
+	}
+
+	return nil
+}
+
+func deleteStatsBySignalID(signal_id int, tx *sqlx.Tx) error {
+	if tx == nil {
+		return fmt.Errorf("given transaction is nil")
+	}
+
+	_, err := tx.Exec(fmt.Sprintf("DELETE FROM stats WHERE signal_id = %d", signal_id))
+	if err != nil {
+		return fmt.Errorf("failed to delete stats from store : %s", err)
 	}
 
 	return nil

@@ -52,6 +52,7 @@ type Order struct {
 	NumShares int     `json:"num_shares" db:"num_shares"`
 	Price     float64 `json:"price" db:"price"`
 	Profit    float64 `json:"profit" db:"profit"`
+	PastOrder bool
 }
 
 type Stats struct {
@@ -63,7 +64,7 @@ type Stats struct {
 	Balance     float64 `json:"balance" db:"balance"`
 	Equity      float64 `json:"equity" db:"equity"`
 	Profit      float64 `json:"profit" db:"profit"`
-	Gain        float64 `json:"gain" db:"gain"`
+	Growth      float64 `json:"growth" db:"growth"`
 	Drawdown    float64 `json:"drawdown" db:"drawdown"`
 	Time        int64   `json:"time" db:"stats_time"`
 }

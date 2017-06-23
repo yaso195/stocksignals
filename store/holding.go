@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/heroku/stocksignals/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
 //  GetHoldingsBySignalID reads the holdings from the database based on the given signal id and orders them based on the given field
@@ -49,4 +51,17 @@ func getHolding(signalID int, code string) (model.Holding, error) {
 	}
 
 	return result, nil
+}
+
+func deleteHoldingsBySignalID(signal_id int, tx *sqlx.Tx) error {
+	if tx == nil {
+		return fmt.Errorf("given transaction is nil")
+	}
+
+	_, err := tx.Exec(fmt.Sprintf("DELETE FROM holdings WHERE signal_id = %d", signal_id))
+	if err != nil {
+		return fmt.Errorf("failed to delete holdings from store : %s", err)
+	}
+
+	return nil
 }
