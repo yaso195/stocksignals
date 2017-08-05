@@ -1,0 +1,13 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/buger/jsonparser",
+			"repository": "https://github.com/buger/jsonparser",
+			"vcs": "git",
+			"revision": "9addec9710dc75a2c77f7233cdfc679aa1af1616",
+			"branch": "master",
+			"notests": true
+		}
+	]
+}
