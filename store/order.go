@@ -35,10 +35,37 @@ func GetOrdersBySignalID(signalID int, field string, descend bool) ([]model.Orde
 func RegisterOrders(orders []model.Order) error {
 	tx := db.MustBegin()
 
-	var err error
+	// Map the orders based on their signal ID
+	signalToOrdersMap := make(map[int][]model.Order)
 	for _, order := range orders {
-		if err = registerOrder(&order, tx); err != nil {
+		if _, ok := signalToOrdersMap[order.SignalID]; !ok {
+			signalToOrdersMap[order.SignalID] = []model.Order{}
+		}
+
+		signalToOrdersMap[order.SignalID] = append(signalToOrdersMap[order.SignalID], order)
+	}
+
+	var err error
+	for signalID, orders := range signalToOrdersMap {
+		signal, err := GetSignalByID(signalID)
+		if err != nil {
 			return err
+		}
+
+		stats, err := GetLatestStats(signalID)
+		if err != nil {
+			return err
+		}
+
+		holdings, err := GetHoldingsBySignalID(signalID, "", true)
+		if err != nil {
+			return err
+		}
+
+		for _, order := range orders {
+			if err = registerOrder(signal, &order, stats, &holdings, tx); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -48,53 +75,39 @@ func RegisterOrders(orders []model.Order) error {
 	return nil
 }
 
-func registerOrder(order *model.Order, tx *sqlx.Tx) error {
+func registerOrder(signal *model.Signal, order *model.Order, stats *model.Stats, holdings *[]model.Holding, tx *sqlx.Tx) error {
 	if order == nil {
 		return fmt.Errorf("given order is nil")
 	}
 
-	signal, err := GetSignalByID(order.SignalID)
-	if err != nil {
-		return err
-	}
-
-	stats, err := GetLatestStats(order.SignalID)
-	if err != nil {
-		return err
-	}
-
-	holdings, err := GetHoldingsBySignalID(order.SignalID, "", true)
-	if err != nil {
-		return err
-	}
-
 	var statsProfit float64
+	var err error
 	switch order.Type {
 	case model.DEPOSIT:
 		err = executeDepositOrder(stats, order)
 	case model.WITHDRAW:
 		err = executeWithdrawOrder(stats, order)
 	case model.BUY, model.ADD:
-		loc := findHolding(order.Code, holdings)
+		loc := findHolding(order.Code, *holdings)
 		var holding *model.Holding
 		if loc == -1 {
 			holding = &model.Holding{}
 		} else {
-			holding = &holdings[loc]
+			holding = &(*holdings)[loc]
 		}
 
 		err = executeBuyOrder(*signal, stats, order, holding, tx)
 
 		if loc == -1 {
-			holdings = append(holdings, *holding)
+			*holdings = append(*holdings, *holding)
 		} else {
-			holdings[loc] = *holding
+			(*holdings)[loc] = *holding
 		}
 	case model.SELL, model.REDUCE:
-		loc := findHolding(order.Code, holdings)
+		loc := findHolding(order.Code, *holdings)
 		var holding *model.Holding
 		if loc != -1 {
-			holding = &holdings[loc]
+			holding = &(*holdings)[loc]
 		}
 
 		err = executeSellOrder(*signal, stats, order, holding, tx)
@@ -115,7 +128,8 @@ func registerOrder(order *model.Order, tx *sqlx.Tx) error {
 	}
 
 	stats.Time = order.Time
-	if err = insertStats(tx, stats, statsProfit, holdings, order.PastOrder); err != nil {
+
+	if err = insertStats(tx, stats, statsProfit, *holdings, order.PastOrder); err != nil {
 		return err
 	}
 

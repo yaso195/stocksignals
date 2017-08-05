@@ -60,7 +60,7 @@ func GetLatestStats(signalID int) (*model.Stats, error) {
 	}
 
 	var result model.Stats
-	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY stats_time DESC LIMIT 1", signalID)
+	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY (stats_time, id) DESC LIMIT 1", signalID)
 	err := db.Get(&result, query)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -80,7 +80,7 @@ func GetAllStats(signalID int) ([]model.Stats, error) {
 	}
 
 	var results []model.Stats
-	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY stats_time DESC", signalID)
+	query := fmt.Sprintf("SELECT * FROM stats WHERE signal_id = %d ORDER BY (stats_time, id) DESC", signalID)
 
 	if err := db.Select(&results, query); err != nil {
 		return nil, fmt.Errorf("error reading stats: %q", err)
