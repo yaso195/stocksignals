@@ -1,7 +1,6 @@
 package server
 
 import (
-	//"fmt"
 	"net/http"
 	"strconv"
 
@@ -55,4 +54,31 @@ func GetAllStatsBySignalID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+func SaveSignalStats(c *gin.Context) {
+	if err := store.Connect(); err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer store.Disconnect()
+
+	signals, err := store.GetSignals("", true)
+	if err != nil {
+		c.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	errFound := false
+	for _, signal := range signals {
+		err = store.SaveStats(signal.ID)
+		if err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
+			errFound = true
+		}
+	}
+
+	if !errFound {
+		c.JSON(http.StatusOK, gin.H{"status": "signals stats are saved successfully"})
+	}
 }

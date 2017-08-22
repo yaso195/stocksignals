@@ -2,10 +2,12 @@ package server
 
 import (
 	"bytes"
-	//"fmt"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,8 +54,29 @@ func Run() {
 
 	router.GET("/stats", GetLatestStatsBySignalID)
 	router.GET("/stats_all", GetAllStatsBySignalID)
+	router.POST("/stats_save", SaveSignalStats)
 
 	router.GET("/portfolio", GetPortfolioBySignalID)
 
-	router.Run(":" + port)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		router.Run(":" + port)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		saveStats(port)
+	}()
+
+	wg.Wait()
+}
+
+func saveStats(port string) {
+	for {
+		http.Post(fmt.Sprintf("http://127.0.0.1:%s/stats_save", port), "", nil)
+		time.Sleep(6 * time.Hour)
+	}
 }

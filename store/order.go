@@ -80,7 +80,7 @@ func registerOrder(signal *model.Signal, order *model.Order, stats *model.Stats,
 		return fmt.Errorf("given order is nil")
 	}
 
-	var statsProfit float64
+	var profit, previousBalance float64
 	var err error
 	switch order.Type {
 	case model.DEPOSIT:
@@ -104,15 +104,15 @@ func registerOrder(signal *model.Signal, order *model.Order, stats *model.Stats,
 			(*holdings)[loc] = *holding
 		}
 	case model.SELL, model.REDUCE:
+		previousBalance = getStockBalance(*holdings) + stats.Funds
 		loc := findHolding(order.Code, *holdings)
 		var holding *model.Holding
 		if loc != -1 {
 			holding = &(*holdings)[loc]
 		}
-
 		err = executeSellOrder(*signal, stats, order, holding, tx)
 
-		statsProfit = order.Profit
+		profit = order.Profit
 	default:
 		err = fmt.Errorf("unknown order type")
 	}
@@ -129,7 +129,7 @@ func registerOrder(signal *model.Signal, order *model.Order, stats *model.Stats,
 
 	stats.Time = order.Time
 
-	if err = insertStats(tx, stats, statsProfit, *holdings, order.PastOrder); err != nil {
+	if err = insertStats(tx, stats, profit, previousBalance, *holdings, order.PastOrder); err != nil {
 		return err
 	}
 
@@ -299,6 +299,14 @@ func findHolding(code string, holdings []model.Holding) int {
 		}
 	}
 	return -1
+}
+
+func getStockBalance(holdings []model.Holding) float64 {
+	var total float64
+	for _, h := range holdings {
+		total += h.Price * float64(h.NumShares)
+	}
+	return total
 }
 
 func delete(stats *model.Stats, order *model.Order) error {

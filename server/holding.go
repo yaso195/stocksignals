@@ -107,19 +107,39 @@ func computePortfolio(stats *model.Stats, holdings []model.Holding) error {
 		}
 
 		for i, holding := range holdings {
-			holdings[i].Gain = (prices[i] - holding.Price) * 100.0 / holding.Price
+			holdings[i].Gain = 0
+			if holding.Price != 0 {
+				holdings[i].Gain = (prices[i] - holding.Price) * 100.0 / holding.Price
+				holdings[i].Gain = prettifyFloat(holdings[i].Gain)
+			}
 			totalStockEquity += prices[i] * float64(holding.NumShares)
 		}
 
 		stats.Equity = totalStockEquity + stats.Funds
 		for i, holding := range holdings {
-			holdings[i].Ratio = prices[i] * float64(holding.NumShares) * 100.0 / totalStockEquity
+			holdings[i].Ratio = 0
+
+			if totalStockEquity != 0 {
+				holdings[i].Ratio = prices[i] * float64(holding.NumShares) * 100.0 / totalStockEquity
+				holdings[i].Ratio = prettifyFloat(holdings[i].Ratio)
+			}
 		}
 
-		gain := (stats.Equity - stats.Balance) * 100.0 / stats.Balance
+		gain := 0.0
+		if stats.Balance != 0 {
+			gain = (stats.Equity - stats.Balance) * 100.0 / stats.Balance
+		}
+		gain = prettifyFloat(gain)
 		stats.Growth += gain
+		stats.Growth = prettifyFloat(stats.Growth)
 		stats.Drawdown = gain * -1
 	}
 
 	return nil
+}
+
+func prettifyFloat(x float64) float64 {
+	result := int64((x + 0.005) * 100.0)
+
+	return float64(result) / 100.0
 }
