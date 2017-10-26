@@ -86,7 +86,7 @@ func getStocksResponses(stocks []string, option string) ([]string, error) {
 
 	response, err := http.Get(fmt.Sprintf(BASE_STOCK_URI, stocksStr, option))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get stock respnse for option %s : %s", option, err)
+		return nil, fmt.Errorf("failed to get stock response for option %s : %s", option, err)
 	}
 
 	responseData, err := ioutil.ReadAll(response.Body)
@@ -100,7 +100,7 @@ func getStocksResponses(stocks []string, option string) ([]string, error) {
 	}
 
 	if int(count) != len(stocks) {
-		return nil, fmt.Errorf("query count is not equal to the number of stocks")
+		return nil, fmt.Errorf("query count %d is not equal to the number of stocks %d", int(count), len(stocks))
 	}
 
 	var array []string
