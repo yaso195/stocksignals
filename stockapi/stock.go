@@ -12,19 +12,12 @@ import (
 
 const (
 	//BASE_STOCK_URI = "http://finance.yahoo.com/d/quotes.csv?s=%s&f=%s"
-	BASE_STOCK_URI = "https://query.yahooapis.com/v1/public/yql?q=select%%20*%%20from%%20csv%%20" +
-		"where%%20url%%3D'http%%3A%%2F%%2Fdownload.finance.yahoo.com%%2Fd%%2Fquotes.csv%%3Fs%%3D" +
-		"%s" +
-		"%%26f%%3Ds" +
-		"%s" +
-		"%%26e%%3D.csv'%%20and%%20columns%%3D'" +
-		"symbol%%2Cvalue" +
-		"'&format=json&env=store%%3A%%2F%%2Fdatatables.org%%2Falltableswithkeys"
+	BASE_STOCK_URI = "https://api.iextrading.com/1.0/tops/last?symbols=%s"
 )
 
 // GetAskPrices queries the yahoo api and returns the current ask price for that stocks.
 func GetAskPrices(stocks []string) ([]float64, error) {
-	pricesStr, err := getStocksResponses(stocks, "l1")
+	pricesStr, err := getStocksResponses(stocks, "a")
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +36,7 @@ func GetAskPrices(stocks []string) ([]float64, error) {
 
 // GetBidPrices queries the yahoo api and returns the current bid price for the given stocks.
 func GetBidPrices(stocks []string) ([]float64, error) {
-	pricesStr, err := getStocksResponses(stocks, "l1")
+	pricesStr, err := getStocksResponses(stocks, "b")
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +77,7 @@ func getStocksResponses(stocks []string, option string) ([]string, error) {
 		stocksStr += "," + stock
 	}
 
-	response, err := http.Get(fmt.Sprintf(BASE_STOCK_URI, stocksStr, option))
+	response, err := http.Get(fmt.Sprintf(BASE_STOCK_URI, stocksStr))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get stock response for option %s : %s", option, err)
 	}
@@ -94,28 +87,29 @@ func getStocksResponses(stocks []string, option string) ([]string, error) {
 		return nil, fmt.Errorf("failed to read stock response data : %s", err)
 	}
 
-	count, err := jsonparser.GetInt(responseData, "query", "count")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the query count from the response data: %s", err)
-	}
-
-	if int(count) != len(stocks) {
-		return nil, fmt.Errorf("query count %d is not equal to the number of stocks %d", int(count), len(stocks))
-	}
-
 	var array []string
-	var val string
-	if len(stocks) == 1 {
-		val, err = jsonparser.GetString(responseData, "query", "results", "row", "value")
-		if err != nil {
-			return nil, fmt.Errorf("failed to get requested %s for %s : %s", option, stocksStr, err)
+	var errParser error
+	jsonparser.ArrayEach(responseData, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		switch option {
+		case "n":
+			symbol, err := jsonparser.GetString(value, "symbol")
+			if err != nil {
+				errParser = fmt.Errorf("failed to parse stock response data to get symbol names : %s", err)
+			}
+
+			array = append(array, symbol)
+		default:
+			price, err := jsonparser.GetFloat(value, "price")
+			if err != nil {
+				errParser = fmt.Errorf("failed to parse stock response data to get symbol prices : %s", err)
+			}
+
+			array = append(array, fmt.Sprintf("%.2f", price))
 		}
-		array = append(array, val)
-	} else {
-		jsonparser.ArrayEach(responseData, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-			val, err = jsonparser.GetString(value, "value")
-			array = append(array, val)
-		}, "query", "results", "row")
+	})
+
+	if errParser != nil {
+		return nil, errParser
 	}
 
 	return array, nil
